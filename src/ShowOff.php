@@ -31,12 +31,12 @@
 		return $out;
 	}
 
-	function url($what, $qs=array()){
+	function url($what, $qs=array(), $include_index_php=true){
 		global $CONFIG;
 		$qs=http_build_query($qs);
 		return implode('', array(
 			$CONFIG['WebDir'],
-			$CONFIG['CleanURLs']?'':'/index.php',
+			$CONFIG['CleanURLs']?'':($include_index_php?'/index.php':''),
 			strlen($what)&&$what[0]=='/'?'':'/',
 			$what,
 			$qs?'?':'',
@@ -110,11 +110,13 @@
 		if(is_dir($requestLocalFile)){
 			//var_dump(listDirectory($requestLocalFile));
 			foreach(listDirectory($requestLocalFile) as $file){
+				echo '<div class="clickable thumb">';
 				if(is_dir($file)){
-					printf('<a href="%s">%s</a>', url($file), basename($file));
+					printf('<div class="thumb_gallery"><a href="%s">%s</a>', url($file), basename($file));
 				}else{
-					printf('<img src="%s" />', url($file, array('view'=>'thumb')));
+					printf('<div class="thumb_image"><a href="%s"><img src="%s" /></a>', url($file), url($file, array('view'=>'thumb')));
 				}
+				echo '</div></div>', "\n";
 			}
 		}else{
 			if(isset($_GET['view'])){
@@ -128,6 +130,20 @@
 				}
 				ob_end_flush();
 				exit(0);
+			}else{
+				$prevImg=null;
+				$nextImg=null;
+				$curDir=listDirectory(dirname($requestLocalFile));
+				foreach($curDir as $i=>$img){
+					if($img==ltrim($requestFile, '/')){
+						//printf("%s == %s<br />", $img, ltrim($requestFile, '/'));
+						if($i>0) $prevImg=$curDir[$i-1];
+						if($i<count($curDir)-1) $nextImg=$curDir[$i+1];
+					}
+				}
+				printf('<div class="clickable adjacent_image"><a href="%s">&laquo;</a></div>', url($prevImg));
+				printf('<div class="clickable small_image"><a href="%s"><img src="%s" /></a></div>', url($requestFile, array(), false), url($requestFile, array('view'=>'small')));
+				printf('<div class="clickable adjacent_image"><a href="%s">&raquo;</a></div>', url($nextImg));
 			}
 		}
 		$BODY=ob_get_contents();
@@ -137,6 +153,58 @@
 <html>
 	<head>
 		<title><?php echo $TITLE, ' - ShowOff'; ?></title>
+		<style type="text/css">
+			<?php
+				list($stThumbWidth, $stThumbHeight)=explode('x', $CONFIG['ThumbnailSize']);
+				list($stSmallWidth, $stSmallHeight)=explode('x', $CONFIG['SmallSize']);
+			?>
+			body{
+				background: #272727;
+				color: #fff;
+			}
+			div.thumb_image{
+				width: <?php echo $stThumbWidth; ?>;
+				height: <?php echo $stThumbHeight; ?>;
+			}
+			div.small_image{
+				width: <?php echo $stSmallWidth; ?>;
+				height: <?php echo $stSmallHeight; ?>;
+			}
+			div.adjacent_image{
+				height: <?php echo $stSmallHeight; ?>;
+			}
+			div.clickable{
+				display: block;
+				float: left;
+				padding: 15px;
+				margin: 6px;
+				background: #373737;
+				border-radius: 9px;
+			}
+			div.clickable:hover{
+				background: #666;
+			}
+			div.clickable a{
+				color: #fff;
+				text-decoration: underline;
+			}
+			div.clickable a:hover{
+				text-decoration: none;
+			}
+			div.adjacent_image a{
+				text-decoration: none;
+				height: 100%;
+				display: block;
+				font-size: 50px;
+			}
+			div#body{
+				overflow: auto;
+				width: 990px;
+				float: none;
+				margin: 0 auto;
+				text-align: center;
+			}
+		</style>
 	</head>
 	<body>
 		<h1><?php echo $TITLE; ?></h1>
@@ -145,7 +213,7 @@
 				/<a href="<?php echo $CONFIG['WebDir'], $parts[0]; ?>"><?php echo $parts[1]; ?></a>
 			<?php endforeach; ?>
 		</div>
-		<div>
+		<div id="body">
 		<?php
 			echo $BODY;
 		?>
